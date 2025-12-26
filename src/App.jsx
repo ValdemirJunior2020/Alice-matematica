@@ -11,9 +11,33 @@ function makeQuestion(mode) {
   const b = randInt(0, 10);
 
   if (mode === "sub") {
-    return { text: `${Math.max(a, b)} − ${Math.min(a, b)}`, answer: Math.abs(a - b) };
+    const big = Math.max(a, b);
+    const small = Math.min(a, b);
+    return { text: `${big} − ${small}`, answer: big - small };
   }
   return { text: `${a} + ${b}`, answer: a + b };
+}
+
+function FloatingBirthdayText() {
+  return (
+    <div className="floatingBirthday" aria-hidden="true">
+      <div className="floatingLine">
+        🎂 Feliz Aniversário Alice — 6 aninhos ❄️👑
+      </div>
+    </div>
+  );
+}
+
+function Snow() {
+  return (
+    <div className="snowLayer" aria-hidden="true">
+      {Array.from({ length: 26 }).map((_, i) => (
+        <span key={i} className={`flake f${(i % 9) + 1}`}>
+          ❄
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export default function App() {
@@ -41,38 +65,47 @@ export default function App() {
 
   async function enterCastle() {
     setEntered(true);
-    if (musicOn) {
+    if (musicOn && audioRef.current) {
       try {
         await audioRef.current.play();
       } catch {}
     }
   }
 
-  function toggleMusic() {
-    if (!audioRef.current) return;
+  async function toggleMusic() {
+    const a = audioRef.current;
+    if (!a) return;
+
     if (musicOn) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
+      a.pause();
+      setMusicOn(false);
+      return;
     }
-    setMusicOn(!musicOn);
+
+    setMusicOn(true);
+    try {
+      await a.play();
+    } catch {}
   }
 
   function checkAnswer(e) {
     e.preventDefault();
     const n = Number(input);
-    if (Number.isNaN(n)) {
+
+    if (input.trim() === "" || Number.isNaN(n)) {
       setFeedback("Digite um número ❄️");
       return;
     }
+
     if (n === question.answer) {
-      setScore(score + 10);
-      setStreak(streak + 1);
+      setScore((s) => s + 10);
+      setStreak((s) => s + 1);
       setFeedback("Acertou! ✨❄️");
     } else {
       setStreak(0);
-      setFeedback(`Quase! Era ${question.answer}`);
+      setFeedback(`Quase! Era ${question.answer} ❄️`);
     }
+
     setInput("");
   }
 
@@ -81,9 +114,13 @@ export default function App() {
     return (
       <div className="page">
         <Snow />
+        <FloatingBirthdayText />
+
         <div className="card glass entry">
           <h1>❄️ Reino do Gelo da Matemática ❄️</h1>
-          <p>Toque para entrar no castelo e ouvir a música da Princesa 🎶</p>
+          <p className="muted">
+            Toque para entrar no castelo e ouvir a música da Princesa 🎶
+          </p>
 
           <input
             value={name}
@@ -91,11 +128,11 @@ export default function App() {
             placeholder="Nome da princesa"
           />
 
-          <button className="btn icyBtn" onClick={enterCastle}>
-            Entrar no Castelo ❄️
+          <button className="btn icyBtn" onClick={enterCastle} type="button">
+            Entrar no Castelo ❄️🎶
           </button>
 
-          <button className="btn ghost" onClick={toggleMusic}>
+          <button className="btn ghost" onClick={toggleMusic} type="button">
             Música: {musicOn ? "Ligada 🎵" : "Desligada 🔇"}
           </button>
         </div>
@@ -107,20 +144,29 @@ export default function App() {
   return (
     <div className="page">
       <Snow />
+      <FloatingBirthdayText />
 
       <header className="top">
         <h2>Bem-vinda, {name} 👑</h2>
-        <button className="btn ghost" onClick={toggleMusic}>
+        <button className="btn ghost" onClick={toggleMusic} type="button">
           🎶 {musicOn ? "On" : "Off"}
         </button>
       </header>
 
       <div className="card glass">
         <div className="pillRow">
-          <button className={mode === "sum" ? "pill active" : "pill"} onClick={() => setMode("sum")}>
+          <button
+            className={mode === "sum" ? "pill active" : "pill"}
+            onClick={() => setMode("sum")}
+            type="button"
+          >
             ➕ Soma
           </button>
-          <button className={mode === "sub" ? "pill active" : "pill"} onClick={() => setMode("sub")}>
+          <button
+            className={mode === "sub" ? "pill active" : "pill"}
+            onClick={() => setMode("sub")}
+            type="button"
+          >
             ➖ Subtração
           </button>
         </div>
@@ -137,25 +183,17 @@ export default function App() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Resposta"
+            inputMode="numeric"
           />
-          <button className="btn icyBtn">Conferir ❄️</button>
+          <button className="btn icyBtn" type="submit">
+            Conferir ❄️
+          </button>
         </form>
 
         {feedback && <div className="feedback">{feedback}</div>}
       </div>
 
-      <footer className="foot">🎂 Feliz Aniversário, Princesa {name}! 🎂</footer>
-    </div>
-  );
-}
-
-/* ❄️ Snow Component */
-function Snow() {
-  return (
-    <div className="snowLayer">
-      {Array.from({ length: 20 }).map((_, i) => (
-        <span key={i} className={`flake f${(i % 9) + 1}`}>❄</span>
-      ))}
+      <footer className="foot">❄️👑 Castelo da Alice 👑❄️</footer>
     </div>
   );
 }
