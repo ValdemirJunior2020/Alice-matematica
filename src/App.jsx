@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
+/* ------------------ helpers ------------------ */
 function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -13,7 +14,6 @@ function makeQuestion(mode, level) {
   };
 
   const r = ranges[level] ?? ranges.easy;
-
   let a = randInt(r.a[0], r.a[1]);
   let b = randInt(r.b[0], r.b[1]);
 
@@ -25,10 +25,13 @@ function makeQuestion(mode, level) {
   return { text: `${a} + ${b}`, answer: a + b };
 }
 
+/* ------------------ App ------------------ */
 export default function App() {
   const [name, setName] = useState("Alice");
-  const [mode, setMode] = useState("sum"); // sum | sub
-  const [level, setLevel] = useState("easy"); // easy | medium | hard
+  const [entered, setEntered] = useState(false);
+
+  const [mode, setMode] = useState("sum");
+  const [level, setLevel] = useState("easy");
 
   const [score, setScore] = useState(0);
   const [correct, setCorrect] = useState(0);
@@ -39,11 +42,52 @@ export default function App() {
   const [feedback, setFeedback] = useState(null);
   const [sparkle, setSparkle] = useState(false);
 
-  // muda a pergunta quando modo/nível e quando acerta/erra (pra trocar)
+  /* ----------- AUDIO ----------- */
+  const audioRef = useRef(null);
+  const [musicOn, setMusicOn] = useState(true);
+
+  useEffect(() => {
+    const audio = new Audio("/audio/a-princesa-dos-numeros.mp3");
+    audio.loop = true;
+    audio.volume = 0.3;
+    audio.preload = "auto";
+    audioRef.current = audio;
+
+    return () => {
+      audio.pause();
+    };
+  }, []);
+
   const question = useMemo(
     () => makeQuestion(mode, level),
     [mode, level, correct, wrong]
   );
+
+  async function enterCastle() {
+    setEntered(true);
+    if (musicOn && audioRef.current) {
+      try {
+        await audioRef.current.play();
+      } catch (e) {
+        console.log("Autoplay blocked until interaction");
+      }
+    }
+  }
+
+  async function toggleMusic() {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (musicOn) {
+      audio.pause();
+      setMusicOn(false);
+    } else {
+      setMusicOn(true);
+      try {
+        await audio.play();
+      } catch {}
+    }
+  }
 
   function resetGame() {
     setScore(0);
@@ -57,34 +101,27 @@ export default function App() {
 
   function checkAnswer(e) {
     e.preventDefault();
+    const n = Number(input);
 
-    const trimmed = input.trim();
-    if (trimmed === "") {
-      setFeedback({ type: "warn", msg: "Digite uma resposta, princesa 😊" });
-      return;
-    }
-
-    const n = Number(trimmed);
-    if (Number.isNaN(n)) {
-      setFeedback({ type: "warn", msg: "Ops! Só números, tá? 🔢" });
+    if (input.trim() === "" || Number.isNaN(n)) {
+      setFeedback({ type: "warn", msg: "Digite um número 😊" });
       return;
     }
 
     if (n === question.answer) {
       const newStreak = streak + 1;
-      setStreak(newStreak);
-
       const bonus = newStreak >= 5 ? 10 : newStreak >= 3 ? 5 : 0;
+
       setScore((s) => s + 10 + bonus);
       setCorrect((c) => c + 1);
-
+      setStreak(newStreak);
       setFeedback({
         type: "ok",
-        msg: `Perfeito! ❄️✨ +${10 + bonus} pontos!`,
+        msg: `Perfeito! ❄️✨ +${10 + bonus} pontos`,
       });
 
       setSparkle(true);
-      setTimeout(() => setSparkle(false), 650);
+      setTimeout(() => setSparkle(false), 600);
       setInput("");
       return;
     }
@@ -99,189 +136,140 @@ export default function App() {
     setInput("");
   }
 
-  const titleBadge =
+  const badge =
     streak >= 8
-      ? "👑 Rainha do Reino do Gelo"
+      ? "👑 Rainha dos Números"
       : streak >= 5
-      ? "🌟 Estrela da Neve"
+      ? "🌟 Estrela do Castelo"
       : streak >= 3
-      ? "✨ Magia em Ação"
-      : "❄️ Treinando no Castelo";
+      ? "✨ Magia Ativa"
+      : "❄️ Aprendendo com Alegria";
 
+  /* ---------------- ENTRY SCREEN ---------------- */
+  if (!entered) {
+    return (
+      <div className="page">
+        <section className="card glass entry">
+          <h1>❄️ Reino do Gelo da Matemática ❄️</h1>
+          <p className="muted">
+            Toque para entrar no castelo e ouvir a música da Princesa 👑
+          </p>
+
+          <div className="nameBox">
+            <label>Nome da princesa</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Alice"
+            />
+          </div>
+
+          <div className="entryActions">
+            <button className="btn icyBtn" onClick={enterCastle}>
+              Entrar no Castelo ❄️🎶
+            </button>
+
+            <button className="btn ghost" onClick={toggleMusic}>
+              Música: {musicOn ? "Ligada 🎵" : "Desligada 🔇"}
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  /* ---------------- GAME ---------------- */
   return (
     <div className="page">
-      {/* Flocos decorativos */}
-      <div className="snowLayer" aria-hidden="true">
-        <span className="flake f1">❄</span>
-        <span className="flake f2">✦</span>
-        <span className="flake f3">❅</span>
-        <span className="flake f4">✧</span>
-        <span className="flake f5">❄</span>
-        <span className="flake f6">❅</span>
-      </div>
-
       <header className="top">
-        <div className="brand">
-          <div className="crest" title="Reino do Gelo">❄️</div>
-          <div>
-            <div className="title">Reino do Gelo da Matemática</div>
-            <div className="subtitle">um jogo mágico de números</div>
-          </div>
+        <div>
+          <h2>Bem-vinda, {name} 👑</h2>
+          <p className="muted">A Princesa dos Números ✨</p>
         </div>
 
-        <div className="nameBox">
-          <label>Nome da princesa</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Alice"
-          />
-        </div>
+        <button className="btn ghost" onClick={toggleMusic}>
+          🎶 {musicOn ? "On" : "Off"}
+        </button>
       </header>
 
       <main className="grid">
         <section className="card glass">
-          <div className="heroRow">
-            <div>
-              <h2>Bem-vinda, {name || "Princesa"} 👑</h2>
-              <p className="muted">
-                Resolva as continhas no castelo gelado. Junte pontos, faça sequência
-                e ganhe títulos reais! ❄️✨
-              </p>
-            </div>
-
-            <div className="castle" aria-hidden="true">
-              <div className="tower t1" />
-              <div className="tower t2" />
-              <div className="tower t3" />
-              <div className="gate" />
-            </div>
-          </div>
-
           <div className="controls">
-            <div className="control">
-              <span className="label">Modo</span>
-              <div className="pillRow">
-                <button
-                  className={mode === "sum" ? "pill active" : "pill"}
-                  onClick={() => setMode("sum")}
-                  type="button"
-                >
-                  ➕ Soma
-                </button>
-                <button
-                  className={mode === "sub" ? "pill active" : "pill"}
-                  onClick={() => setMode("sub")}
-                  type="button"
-                >
-                  ➖ Subtração
-                </button>
-              </div>
+            <div className="pillRow">
+              <button
+                className={mode === "sum" ? "pill active" : "pill"}
+                onClick={() => setMode("sum")}
+              >
+                ➕ Soma
+              </button>
+              <button
+                className={mode === "sub" ? "pill active" : "pill"}
+                onClick={() => setMode("sub")}
+              >
+                ➖ Subtração
+              </button>
             </div>
 
-            <div className="control">
-              <span className="label">Nível</span>
-              <div className="pillRow">
-                <button
-                  className={level === "easy" ? "pill active" : "pill"}
-                  onClick={() => setLevel("easy")}
-                  type="button"
-                >
-                  😊 Fácil
-                </button>
-                <button
-                  className={level === "medium" ? "pill active" : "pill"}
-                  onClick={() => setLevel("medium")}
-                  type="button"
-                >
-                  😎 Médio
-                </button>
-                <button
-                  className={level === "hard" ? "pill active" : "pill"}
-                  onClick={() => setLevel("hard")}
-                  type="button"
-                >
-                  🧠 Difícil
-                </button>
-              </div>
+            <div className="pillRow">
+              <button
+                className={level === "easy" ? "pill active" : "pill"}
+                onClick={() => setLevel("easy")}
+              >
+                😊 Fácil
+              </button>
+              <button
+                className={level === "medium" ? "pill active" : "pill"}
+                onClick={() => setLevel("medium")}
+              >
+                😎 Médio
+              </button>
+              <button
+                className={level === "hard" ? "pill active" : "pill"}
+                onClick={() => setLevel("hard")}
+              >
+                🧠 Difícil
+              </button>
             </div>
           </div>
 
           <div className="stats">
-            <div className="stat">
-              <div className="statLabel">Pontos</div>
-              <div className="statValue">{score}</div>
-            </div>
-            <div className="stat">
-              <div className="statLabel">Acertos</div>
-              <div className="statValue">{correct}</div>
-            </div>
-            <div className="stat">
-              <div className="statLabel">Erros</div>
-              <div className="statValue">{wrong}</div>
-            </div>
-            <div className="stat">
-              <div className="statLabel">Sequência</div>
-              <div className="statValue">{streak} 🔥</div>
-            </div>
+            <div className="stat">⭐ {score}</div>
+            <div className="stat">✅ {correct}</div>
+            <div className="stat">❌ {wrong}</div>
+            <div className="stat">🔥 {streak}</div>
           </div>
 
-          <div className="badge icy">{titleBadge}</div>
+          <div className="badge icy">{badge}</div>
 
           <div className={sparkle ? "question sparkle" : "question"}>
-            <div className="qLabel">Desafio real:</div>
-            <div className="qText">{question.text}</div>
+            {question.text}
           </div>
 
           <form className="answerRow" onSubmit={checkAnswer}>
             <input
+              className="answerInput"
               inputMode="numeric"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite a resposta"
-              className="answerInput"
+              placeholder="Resposta"
             />
-            <button className="btn icyBtn" type="submit">
-              Conferir ❄️
-            </button>
+            <button className="btn icyBtn">Conferir ❄️</button>
           </form>
 
-          {feedback && <div className={`feedback ${feedback.type}`}>{feedback.msg}</div>}
+          {feedback && (
+            <div className={`feedback ${feedback.type}`}>
+              {feedback.msg}
+            </div>
+          )}
 
-          <div className="actions">
-            <button className="btn ghost" type="button" onClick={resetGame}>
-              Reiniciar o Reino ✨
-            </button>
-          </div>
-        </section>
-
-        <section className="card glass side">
-          <h3>Regras do Castelo 👑</h3>
-          <ul>
-            <li>Acertou: +10 pontos</li>
-            <li>3 acertos seguidos: bônus +5</li>
-            <li>5 acertos seguidos: bônus +10</li>
-            <li>Errou: -2 pontos (nunca fica negativo)</li>
-          </ul>
-
-          <div className="divider" />
-
-          <h3>Próximas magias (se você quiser)</h3>
-          <ul>
-            <li>Multiplicação e divisão</li>
-            <li>Modo tabuada (1 a 10)</li>
-            <li>Medalhas por nível</li>
-            <li>Som de “acertou” / “errou”</li>
-          </ul>
-
-          <p className="tiny muted">
-            Tema: princesa do gelo / inverno mágico (original e seguro) ❄️
-          </p>
+          <button className="btn ghost" onClick={resetGame}>
+            Reiniciar ✨
+          </button>
         </section>
       </main>
 
       <footer className="foot">
-        Feito com carinho para a Princesa {name || "Alice"} ❄️👑
+        🎂❄️ Feliz Aniversário, Princesa {name}! ❄️🎂
       </footer>
     </div>
   );
