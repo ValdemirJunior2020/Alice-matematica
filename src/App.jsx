@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 import {
   addDoc,
   collection,
@@ -13,8 +13,9 @@ import {
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
+import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
-/* ------------------ Helpers ------------------ */
+/* ---------------- Helpers ---------------- */
 function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -31,13 +32,13 @@ function makeQuestion(mode) {
   return { text: `${a} + ${b}`, answer: a + b };
 }
 
-function clampMsg(s, maxLen) {
+function clampText(s, maxLen) {
   const t = (s ?? "").trim();
   if (t.length <= maxLen) return t;
   return t.slice(0, maxLen - 1) + "…";
 }
 
-/* ------------------ UI Parts ------------------ */
+/* ---------------- UI ---------------- */
 function Snow() {
   return (
     <div className="snowLayer" aria-hidden="true">
@@ -58,29 +59,26 @@ function FloatingBirthdayText() {
   );
 }
 
-/* Floating notes around the screen (read-only, from Firestore) */
 function FloatingNotes({ notes }) {
-  // show a few latest notes as floating bubbles
   const show = (notes || []).slice(0, 8);
-
   return (
     <div className="floatingNotesLayer" aria-hidden="true">
       {show.map((n, idx) => (
         <div key={n.id} className={`floatNote fn${(idx % 6) + 1}`}>
           <div className="fnName">💙 {n.name}</div>
-          <div className="fnMsg">{clampMsg(n.message, 55)}</div>
+          <div className="fnMsg">{clampText(n.message, 55)}</div>
         </div>
       ))}
     </div>
   );
 }
 
-/* ------------------ Main App ------------------ */
+/* ---------------- App ---------------- */
 const COLLECTION_NAME = "alice_guestbook";
 
 export default function App() {
   const [entered, setEntered] = useState(false);
-  const [name, setName] = useState("Alice");
+  const [princessName, setPrincessName] = useState("Alice");
 
   // game
   const [mode, setMode] = useState("sum");
@@ -93,11 +91,16 @@ export default function App() {
   const audioRef = useRef(null);
   const [musicOn, setMusicOn] = useState(true);
 
+  // auth
+  const [uid, setUid] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState("");
+
   // guestbook form
   const [guestName, setGuestName] = useState("");
   const [guestMsg, setGuestMsg] = useState("");
 
-  // CRUD state
+  // CRUD
   const [notes, setNotes] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
@@ -113,7 +116,27 @@ export default function App() {
     return () => audio.pause();
   }, []);
 
-  // firestore live read
+  // ✅ anonymous auth (important)
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      try {
+        if (!user) {
+          await signInAnonymously(auth);
+          return;
+        }
+        setUid(user.uid);
+        setAuthReady(true);
+      } catch (e) {
+        console.error("Anonymous auth error:", e);
+        setAuthError(`${e?.code || ""} ${e?.message || e}`);
+        setAuthReady(true);
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
+  // live read
   useEffect(() => {
     const colRef = collection(db, COLLECTION_NAME);
     const q = query(colRef, orderBy("createdAt", "desc"));
@@ -121,15 +144,10 @@ export default function App() {
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const rows = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
+        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setNotes(rows);
       },
-      (err) => {
-        console.error("Firestore onSnapshot error:", err);
-      }
+      (err) => console.error("onSnapshot error:", err)
     );
 
     return () => unsub();
@@ -187,25 +205,31 @@ export default function App() {
     e.preventDefault();
     const n = guestName.trim();
     const m = guestMsg.trim();
-
     if (!n || !m) return;
 
-    const safeName = clampMsg(n, 40);
-    const safeMsg = clampMsg(m, 120); // short-ish
+    if (!uid) {
+      alert("Aguarde um segundinho… conectando para enviar seu recadinho ❄️");
+      return;
+    }
+
+    const safeName = clampText(n, 40);
+    const safeMsg = clampText(m, 120);
 
     setBusy(true);
     try {
       await addDoc(collection(db, COLLECTION_NAME), {
+        uid, // ✅ matches rules
         name: safeName,
         message: safeMsg,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+
       setGuestName("");
       setGuestMsg("");
     } catch (err) {
       console.error("addDoc error:", err);
-      alert("Erro ao enviar recadinho. Tente novamente.");
+      alert(`Erro ao enviar: ${err?.code || ""} ${err?.message || err}`);
     } finally {
       setBusy(false);
     }
@@ -224,9 +248,8 @@ export default function App() {
   }
 
   async function saveEdit(id) {
-    const n = clampMsg(editName, 40);
-    const m = clampMsg(editMsg, 120);
-
+    const n = clampText(editName, 40);
+    const m = clampText(editMsg, 120);
     if (!n || !m) return;
 
     setBusy(true);
@@ -239,7 +262,7 @@ export default function App() {
       cancelEdit();
     } catch (err) {
       console.error("updateDoc error:", err);
-      alert("Erro ao editar recadinho.");
+      alert(`Erro ao editar: ${err?.code || ""} ${err?.message || err}`);
     } finally {
       setBusy(false);
     }
@@ -253,13 +276,12 @@ export default function App() {
       await deleteDoc(doc(db, COLLECTION_NAME, id));
     } catch (err) {
       console.error("deleteDoc error:", err);
-      alert("Erro ao apagar recadinho.");
+      alert(`Erro ao apagar: ${err?.code || ""} ${err?.message || err}`);
     } finally {
       setBusy(false);
     }
   }
 
-  /* ENTRY SCREEN */
   if (!entered) {
     return (
       <div className="page">
@@ -272,8 +294,8 @@ export default function App() {
           <p className="muted">Toque para entrar no castelo e ouvir a música da Princesa 🎶</p>
 
           <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={princessName}
+            onChange={(e) => setPrincessName(e.target.value)}
             placeholder="Nome da princesa"
           />
 
@@ -284,11 +306,16 @@ export default function App() {
           <button className="btn ghost" onClick={toggleMusic} type="button">
             Música: {musicOn ? "Ligada 🎵" : "Desligada 🔇"}
           </button>
+
+          <div className="muted tiny" style={{ marginTop: 10 }}>
+            {authReady ? "✅ Conectado para recadinhos" : "⏳ Conectando para recadinhos..."}
+            {authError ? <div style={{ marginTop: 6 }}>⚠️ {authError}</div> : null}
+          </div>
         </div>
 
         <div className="card glass">
           <h3 className="sectionTitle">📜 Livro de Recadinhos</h3>
-          <p className="muted tiny">Os recadinhos ficam salvos online (Firebase) e todos veem 🎉</p>
+          <p className="muted tiny">Somente quem escreveu consegue editar/apagar ✅</p>
 
           <form onSubmit={createNote} className="noteForm">
             <label className="tiny muted">Seu nome</label>
@@ -303,18 +330,19 @@ export default function App() {
             <textarea
               value={guestMsg}
               onChange={(e) => setGuestMsg(e.target.value)}
-              placeholder="Ex: Parabéns Alice! Você é uma princesa incrível! 🎂❄️"
+              placeholder="Ex: Parabéns Alice! Você é brilhante! ✨"
               maxLength={120}
               rows={3}
             />
 
-            <button className="btn icyBtn" type="submit" disabled={busy}>
+            <button className="btn icyBtn" type="submit" disabled={busy || !authReady}>
               {busy ? "Enviando..." : "Enviar 💌"}
             </button>
           </form>
 
           <NotesList
             notes={notes}
+            uid={uid}
             editingId={editingId}
             editName={editName}
             editMsg={editMsg}
@@ -331,7 +359,6 @@ export default function App() {
     );
   }
 
-  /* GAME + GUESTBOOK */
   return (
     <div className="page">
       <Snow />
@@ -339,28 +366,19 @@ export default function App() {
       <FloatingNotes notes={notes} />
 
       <header className="top">
-        <h2>Bem-vinda, {name} 👑</h2>
+        <h2>Bem-vinda, {princessName} 👑</h2>
         <button className="btn ghost" onClick={toggleMusic} type="button">
           🎶 {musicOn ? "On" : "Off"}
         </button>
       </header>
 
       <div className="layout">
-        {/* LEFT: game */}
         <div className="card glass">
           <div className="pillRow">
-            <button
-              className={mode === "sum" ? "pill active" : "pill"}
-              onClick={() => setMode("sum")}
-              type="button"
-            >
+            <button className={mode === "sum" ? "pill active" : "pill"} onClick={() => setMode("sum")} type="button">
               ➕ Soma
             </button>
-            <button
-              className={mode === "sub" ? "pill active" : "pill"}
-              onClick={() => setMode("sub")}
-              type="button"
-            >
+            <button className={mode === "sub" ? "pill active" : "pill"} onClick={() => setMode("sub")} type="button">
               ➖ Subtração
             </button>
           </div>
@@ -373,12 +391,7 @@ export default function App() {
           <div className="question">{question.text}</div>
 
           <form onSubmit={checkAnswer} className="answerRow">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Resposta"
-              inputMode="numeric"
-            />
+            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Resposta" inputMode="numeric" />
             <button className="btn icyBtn" type="submit">
               Conferir ❄️
             </button>
@@ -387,36 +400,24 @@ export default function App() {
           {feedback && <div className="feedback">{feedback}</div>}
         </div>
 
-        {/* RIGHT: guestbook */}
         <div className="card glass">
           <h3 className="sectionTitle">📜 Recadinhos pra Alice</h3>
-          <p className="muted tiny">Nome + recadinho curto. Você pode editar/apagar (CRUD).</p>
 
           <form onSubmit={createNote} className="noteForm">
             <label className="tiny muted">Seu nome</label>
-            <input
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              placeholder="Ex: Vovó"
-              maxLength={40}
-            />
+            <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Ex: Vovô" maxLength={40} />
 
             <label className="tiny muted">Recadinho curto</label>
-            <textarea
-              value={guestMsg}
-              onChange={(e) => setGuestMsg(e.target.value)}
-              placeholder="Ex: Te amo! Feliz aniversário! 🎂"
-              maxLength={120}
-              rows={3}
-            />
+            <textarea value={guestMsg} onChange={(e) => setGuestMsg(e.target.value)} placeholder="Ex: Te amo! 🎂" maxLength={120} rows={3} />
 
-            <button className="btn icyBtn" type="submit" disabled={busy}>
+            <button className="btn icyBtn" type="submit" disabled={busy || !authReady}>
               {busy ? "Enviando..." : "Enviar 💌"}
             </button>
           </form>
 
           <NotesList
             notes={notes}
+            uid={uid}
             editingId={editingId}
             editName={editName}
             editMsg={editMsg}
@@ -436,9 +437,9 @@ export default function App() {
   );
 }
 
-/* ------------------ Notes list (CRUD UI) ------------------ */
 function NotesList({
   notes,
+  uid,
   editingId,
   editName,
   editMsg,
@@ -457,6 +458,7 @@ function NotesList({
       ) : (
         notes.map((n) => {
           const isEditing = editingId === n.id;
+          const isOwner = uid && n.uid === uid;
 
           return (
             <div key={n.id} className="noteCard">
@@ -465,58 +467,38 @@ function NotesList({
                   <div className="noteTop">
                     <div className="noteName">💙 {n.name}</div>
 
-                    <div className="noteBtns">
-                      <button
-                        className="miniBtn"
-                        type="button"
-                        onClick={() => startEdit(n)}
-                        disabled={busy}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className="miniBtn danger"
-                        type="button"
-                        onClick={() => removeNote(n.id)}
-                        disabled={busy}
-                      >
-                        Apagar
-                      </button>
-                    </div>
+                    {isOwner && (
+                      <div className="noteBtns">
+                        <button className="miniBtn" type="button" onClick={() => startEdit(n)} disabled={busy}>
+                          Editar
+                        </button>
+                        <button className="miniBtn danger" type="button" onClick={() => removeNote(n.id)} disabled={busy}>
+                          Apagar
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="noteMsg">{n.message}</div>
+
+                  {!isOwner && <div className="muted tiny" style={{ marginTop: 8 }}>🔒 Somente o autor pode editar/apagar</div>}
                 </>
               ) : (
                 <>
                   <div className="noteEditGrid">
                     <div>
                       <div className="tiny muted">Nome</div>
-                      <input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        maxLength={40}
-                      />
+                      <input value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={40} />
                     </div>
 
                     <div>
                       <div className="tiny muted">Recadinho curto</div>
-                      <textarea
-                        value={editMsg}
-                        onChange={(e) => setEditMsg(e.target.value)}
-                        maxLength={120}
-                        rows={3}
-                      />
+                      <textarea value={editMsg} onChange={(e) => setEditMsg(e.target.value)} maxLength={120} rows={3} />
                     </div>
                   </div>
 
                   <div className="noteBtns editRow">
-                    <button
-                      className="miniBtn"
-                      type="button"
-                      onClick={() => saveEdit(n.id)}
-                      disabled={busy}
-                    >
+                    <button className="miniBtn" type="button" onClick={() => saveEdit(n.id)} disabled={busy}>
                       Salvar
                     </button>
                     <button className="miniBtn ghosty" type="button" onClick={cancelEdit} disabled={busy}>
