@@ -3,7 +3,6 @@
   --ice2:#d9f6ff;
 
   --card: rgba(255,255,255,.14);
-  --border: rgba(255,255,255,.22);
   --text: rgba(255,255,255,.95);
   --muted: rgba(255,255,255,.75);
 
@@ -20,7 +19,6 @@ body{
   color: var(--text);
   min-height:100vh;
 
-  /* Alice photo bg + ice overlay */
   background:
     linear-gradient(rgba(6,20,39,.55), rgba(11,47,87,.65)),
     url("/bg.png");
@@ -39,38 +37,35 @@ body{
 }
 
 /* ===============================
-   🎂 MOVING TEXT (floating)
-   - moves across screen diagonally
-   - does not block clicks
+   🎂 Moving birthday text (slow dark blue)
 ================================ */
 .floatingBirthday{
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 4;
+  z-index: 6;
 }
 
 .floatingLine{
   position: absolute;
-  left: -140%;
-  top: 14%;
-  padding: 10px 14px;
+  left: -160%;
+  top: 16%;
+  padding: 12px 18px;
   border-radius: 999px;
   font-weight: 1000;
-  font-size: 16px;
-  color: #ffeaa7;
+  font-size: 17px;
 
-  background: rgba(0,0,0,.25);
-  border: 1px solid rgba(255,255,255,.18);
-  backdrop-filter: blur(6px);
+  color: #0b3c6f;
+  background: rgba(11,60,111,.18);
+  border: 1px solid rgba(159,231,255,.28);
+  backdrop-filter: blur(8px);
 
   text-shadow:
-    0 0 10px rgba(255,234,167,.65),
-    0 0 20px rgba(159,231,255,.30);
+    0 0 10px rgba(159,231,255,.45),
+    0 0 18px rgba(11,60,111,.6);
 
-  animation: floatAcross 30s linear infinite;
+  animation: floatAcross 28s linear infinite;
 }
-
 
 @keyframes floatAcross{
   0%   { transform: translateX(0) translateY(0) rotate(-2deg); opacity: 0; }
@@ -79,13 +74,12 @@ body{
   100% { transform: translateX(240vw) translateY(24vh) rotate(6deg); opacity: 0; }
 }
 
-/* small phones: smaller text */
 @media (max-width: 420px){
   .floatingLine{ font-size: 14px; top: 10%; }
 }
 
 /* ===============================
-   ❄️ SNOW
+   ❄️ Snow
 ================================ */
 .snowLayer{
   position: fixed;
@@ -117,9 +111,64 @@ body{
 .f8{ left:85%; font-size:10px; animation-duration:22s; opacity:.55;}
 .f9{ left:95%; font-size:18px; animation-duration:14s;}
 
+/* ===============================
+   💬 Floating notes (name + short msg)
+================================ */
+.floatingNotesLayer{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.floatNote{
+  position: absolute;
+  width: min(240px, 70vw);
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(159,231,255,.22);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 35px rgba(0,0,0,.35);
+  opacity: .92;
+
+  animation: floaty 10s ease-in-out infinite;
+}
+
+.fnName{
+  font-weight: 1000;
+  font-size: 13px;
+  color: var(--ice2);
+}
+
+.fnMsg{
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255,255,255,.92);
+  line-height: 1.25;
+}
+
+@keyframes floaty{
+  0%,100%{ transform: translateY(0) translateX(0); }
+  50%{ transform: translateY(-10px) translateX(6px); }
+}
+
+/* positions + different speeds */
+.fn1{ top: 18%; left: 6%;  animation-duration: 11s; }
+.fn2{ top: 36%; right: 6%; animation-duration: 13s; }
+.fn3{ bottom: 20%; left: 8%; animation-duration: 12s; }
+.fn4{ bottom: 10%; right: 8%; animation-duration: 14s; }
+.fn5{ top: 60%; left: 50%; transform: translateX(-50%); animation-duration: 15s; }
+.fn6{ top: 8%; right: 18%; animation-duration: 12s; }
+
+@media (max-width: 520px){
+  .floatNote{ width: 72vw; }
+  .fn2, .fn4{ display: none; } /* keep it clean on small phones */
+}
+
 /* Reduce motion */
 @media (prefers-reduced-motion: reduce){
-  .flake, .floatingLine{ animation: none; }
+  .flake, .floatingLine, .floatNote{ animation: none; }
 }
 
 /* ===============================
@@ -137,17 +186,20 @@ body{
 }
 
 .entry{ text-align:center; }
-
 .muted{ color: var(--muted); }
+.tiny{ font-size: 12px; }
 
-input{
+input, textarea{
   width:100%;
   padding:12px;
   border-radius:14px;
   border:none;
   margin:10px 0;
   font-size:16px;
+  outline: none;
 }
+
+textarea{ resize: vertical; }
 
 .btn{
   width:100%;
@@ -157,6 +209,11 @@ input{
   font-weight:900;
   margin-top:8px;
   cursor:pointer;
+}
+
+.btn:disabled{
+  opacity: .65;
+  cursor: not-allowed;
 }
 
 .icyBtn{
@@ -238,7 +295,94 @@ input{
   position:relative;
 }
 
-/* bigger screens */
-@media (min-width: 700px){
+/* ===============================
+   Layout
+================================ */
+.layout{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 900px){
+  .page{ max-width: 1100px; margin: 0 auto; }
+  .layout{ grid-template-columns: 1.2fr .8fr; }
   .answerRow{ flex-direction: row; }
+}
+
+/* ===============================
+   Notes list (CRUD)
+================================ */
+.sectionTitle{
+  margin: 0 0 6px 0;
+  font-size: 18px;
+  font-weight: 1000;
+}
+
+.noteForm{
+  margin-top: 10px;
+}
+
+.noteList{
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.noteCard{
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(159,231,255,.22);
+}
+
+.noteTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+}
+
+.noteName{
+  font-weight: 950;
+  color: #d9f6ff;
+}
+
+.noteMsg{
+  margin-top: 8px;
+  line-height: 1.3;
+  color: rgba(255,255,255,.9);
+}
+
+.noteBtns{
+  display:flex;
+  gap: 8px;
+}
+
+.miniBtn{
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.22);
+  color: white;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.miniBtn.ghosty{
+  background: transparent;
+}
+
+.miniBtn.danger{
+  border-color: rgba(255,120,120,.45);
+}
+
+.noteEditGrid{
+  display: grid;
+  gap: 8px;
+}
+
+.editRow{
+  margin-top: 8px;
+  justify-content: flex-end;
 }
