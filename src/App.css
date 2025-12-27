@@ -2,11 +2,12 @@
   --ice:#9fe7ff;
   --ice2:#d9f6ff;
 
-  --card: rgba(255,255,255,.14);
+  /* ✅ more transparent cards so bg face shows */
+  --card: rgba(255,255,255,.10);
   --text: rgba(255,255,255,.95);
   --muted: rgba(255,255,255,.75);
 
-  --shadow: 0 18px 60px rgba(0,0,0,.45);
+  --shadow: 0 18px 60px rgba(0,0,0,.35);
   --radius: 18px;
 }
 
@@ -19,8 +20,9 @@ body{
   color: var(--text);
   min-height:100vh;
 
+  /* ✅ less dark overlay so we see Alice's face more */
   background:
-    linear-gradient(rgba(6,20,39,.55), rgba(11,47,87,.65)),
+    linear-gradient(rgba(6,20,39,.28), rgba(11,47,87,.35)),
     url("/bg.png");
 
   background-size: cover;
@@ -33,7 +35,26 @@ body{
   min-height: 100vh;
   padding: 16px;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+}
+
+/* sections */
+.hero{
+  min-height: calc(100vh - 40px);
+  display: flex;
+  align-items: center;
+}
+.below{
+  padding-top: 12px;
+  padding-bottom: 40px;
+}
+
+.scrollHint{
+  margin-top: 12px;
+  text-align: center;
+  font-weight: 900;
+  color: rgba(255,255,255,.85);
+  text-shadow: 0 0 16px rgba(159,231,255,.35);
 }
 
 /* ===============================
@@ -56,13 +77,15 @@ body{
   font-size: 17px;
 
   color: #0b3c6f;
-  background: rgba(11,60,111,.18);
-  border: 1px solid rgba(159,231,255,.28);
+
+  /* ✅ also more transparent */
+  background: rgba(11,60,111,.14);
+  border: 1px solid rgba(159,231,255,.22);
   backdrop-filter: blur(8px);
 
   text-shadow:
-    0 0 10px rgba(159,231,255,.45),
-    0 0 18px rgba(11,60,111,.6);
+    0 0 10px rgba(159,231,255,.35),
+    0 0 18px rgba(11,60,111,.5);
 
   animation: floatAcross 28s linear infinite;
 }
@@ -92,7 +115,7 @@ body{
   position:absolute;
   top: -40px;
   color: rgba(217,246,255,.9);
-  text-shadow: 0 0 18px rgba(159,231,255,.45);
+  text-shadow: 0 0 18px rgba(159,231,255,.35);
   opacity: .9;
   animation: fall linear infinite;
 }
@@ -111,64 +134,8 @@ body{
 .f8{ left:85%; font-size:10px; animation-duration:22s; opacity:.55;}
 .f9{ left:95%; font-size:18px; animation-duration:14s;}
 
-/* ===============================
-   💬 Floating notes (name + short msg)
-================================ */
-.floatingNotesLayer{
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.floatNote{
-  position: absolute;
-  width: min(240px, 70vw);
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(0,0,0,.18);
-  border: 1px solid rgba(159,231,255,.22);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 10px 35px rgba(0,0,0,.35);
-  opacity: .92;
-
-  animation: floaty 10s ease-in-out infinite;
-}
-
-.fnName{
-  font-weight: 1000;
-  font-size: 13px;
-  color: var(--ice2);
-}
-
-.fnMsg{
-  margin-top: 6px;
-  font-size: 12px;
-  color: rgba(255,255,255,.92);
-  line-height: 1.25;
-}
-
-@keyframes floaty{
-  0%,100%{ transform: translateY(0) translateX(0); }
-  50%{ transform: translateY(-10px) translateX(6px); }
-}
-
-/* positions + different speeds */
-.fn1{ top: 18%; left: 6%;  animation-duration: 11s; }
-.fn2{ top: 36%; right: 6%; animation-duration: 13s; }
-.fn3{ bottom: 20%; left: 8%; animation-duration: 12s; }
-.fn4{ bottom: 10%; right: 8%; animation-duration: 14s; }
-.fn5{ top: 60%; left: 50%; transform: translateX(-50%); animation-duration: 15s; }
-.fn6{ top: 8%; right: 18%; animation-duration: 12s; }
-
-@media (max-width: 520px){
-  .floatNote{ width: 72vw; }
-  .fn2, .fn4{ display: none; } /* keep it clean on small phones */
-}
-
-/* Reduce motion */
 @media (prefers-reduced-motion: reduce){
-  .flake, .floatingLine, .floatNote{ animation: none; }
+  .flake, .floatingLine{ animation: none; }
 }
 
 /* ===============================
@@ -183,6 +150,9 @@ body{
   position: relative;
   z-index: 2;
   backdrop-filter: blur(8px);
+
+  /* ✅ subtle border; helps readability while still showing bg */
+  border: 1px solid rgba(159,231,255,.18);
 }
 
 .entry{ text-align:center; }
@@ -224,7 +194,7 @@ textarea{ resize: vertical; }
 .ghost{
   background: transparent;
   color: white;
-  border: 1px solid rgba(255,255,255,.25);
+  border: 1px solid rgba(255,255,255,.22);
 }
 
 .top{
@@ -246,7 +216,7 @@ textarea{ resize: vertical; }
   flex:1;
   padding:12px;
   border-radius:999px;
-  background: rgba(255,255,255,.25);
+  background: rgba(255,255,255,.20);
   border:none;
   font-weight:800;
   color:white;
@@ -272,7 +242,7 @@ textarea{ resize: vertical; }
   text-align:center;
   margin:16px 0;
   color: var(--ice2);
-  text-shadow: 0 0 22px rgba(159,231,255,.6);
+  text-shadow: 0 0 22px rgba(159,231,255,.45);
 }
 
 .answerRow{
@@ -293,21 +263,6 @@ textarea{ resize: vertical; }
   opacity:.85;
   z-index:2;
   position:relative;
-}
-
-/* ===============================
-   Layout
-================================ */
-.layout{
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-@media (min-width: 900px){
-  .page{ max-width: 1100px; margin: 0 auto; }
-  .layout{ grid-template-columns: 1.2fr .8fr; }
-  .answerRow{ flex-direction: row; }
 }
 
 /* ===============================
@@ -332,8 +287,10 @@ textarea{ resize: vertical; }
 .noteCard{
   padding: 12px;
   border-radius: 14px;
-  background: rgba(0,0,0,.18);
-  border: 1px solid rgba(159,231,255,.22);
+
+  /* ✅ transparent so bg still shows a bit */
+  background: rgba(0,0,0,.16);
+  border: 1px solid rgba(159,231,255,.18);
 }
 
 .noteTop{
@@ -351,7 +308,7 @@ textarea{ resize: vertical; }
 .noteMsg{
   margin-top: 8px;
   line-height: 1.3;
-  color: rgba(255,255,255,.9);
+  color: rgba(255,255,255,.92);
 }
 
 .noteBtns{
@@ -385,4 +342,10 @@ textarea{ resize: vertical; }
 .editRow{
   margin-top: 8px;
   justify-content: flex-end;
+}
+
+/* desktop spacing */
+@media (min-width: 900px){
+  .page{ max-width: 980px; margin: 0 auto; }
+  .answerRow{ flex-direction: row; }
 }

@@ -59,21 +59,6 @@ function FloatingBirthdayText() {
   );
 }
 
-function FloatingNotes({ notes }) {
-  const show = (notes || []).slice(0, 8);
-  return (
-    <div className="floatingNotesLayer" aria-hidden="true">
-      {show.map((n, idx) => (
-        <div key={n.id} className={`floatNote fn${(idx % 6) + 1}`}>
-          <div className="fnName">💙 {n.name}</div>
-          <div className="fnMsg">{clampText(n.message, 55)}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ---------------- App ---------------- */
 const COLLECTION_NAME = "alice_guestbook";
 
 export default function App() {
@@ -116,7 +101,7 @@ export default function App() {
     return () => audio.pause();
   }, []);
 
-  // ✅ anonymous auth (important)
+  // anonymous auth
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       try {
@@ -218,7 +203,7 @@ export default function App() {
     setBusy(true);
     try {
       await addDoc(collection(db, COLLECTION_NAME), {
-        uid, // ✅ matches rules
+        uid,
         name: safeName,
         message: safeMsg,
         createdAt: serverTimestamp(),
@@ -282,67 +267,55 @@ export default function App() {
     }
   }
 
+  // ---------- ENTRY (top section only) ----------
   if (!entered) {
     return (
       <div className="page">
         <Snow />
         <FloatingBirthdayText />
-        <FloatingNotes notes={notes} />
 
-        <div className="card glass entry">
-          <h1>❄️ Reino do Gelo da Matemática ❄️</h1>
-          <p className="muted">Toque para entrar no castelo e ouvir a música da Princesa 🎶</p>
+        <section className="hero">
+          <div className="card glass entry">
+            <h1>❄️ Reino do Gelo da Matemática ❄️</h1>
+            <p className="muted">
+              Toque para entrar no castelo e ouvir a música da Princesa 🎶
+            </p>
 
-          <input
-            value={princessName}
-            onChange={(e) => setPrincessName(e.target.value)}
-            placeholder="Nome da princesa"
-          />
-
-          <button className="btn icyBtn" onClick={enterCastle} type="button">
-            Entrar no Castelo ❄️🎶
-          </button>
-
-          <button className="btn ghost" onClick={toggleMusic} type="button">
-            Música: {musicOn ? "Ligada 🎵" : "Desligada 🔇"}
-          </button>
-
-          <div className="muted tiny" style={{ marginTop: 10 }}>
-            {authReady ? "✅ Conectado para recadinhos" : "⏳ Conectando para recadinhos..."}
-            {authError ? <div style={{ marginTop: 6 }}>⚠️ {authError}</div> : null}
-          </div>
-        </div>
-
-        <div className="card glass">
-          <h3 className="sectionTitle">📜 Livro de Recadinhos</h3>
-          <p className="muted tiny">Somente quem escreveu consegue editar/apagar ✅</p>
-
-          <form onSubmit={createNote} className="noteForm">
-            <label className="tiny muted">Seu nome</label>
             <input
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              placeholder="Ex: Tia Maria"
-              maxLength={40}
+              value={princessName}
+              onChange={(e) => setPrincessName(e.target.value)}
+              placeholder="Nome da princesa"
             />
 
-            <label className="tiny muted">Recadinho curto</label>
-            <textarea
-              value={guestMsg}
-              onChange={(e) => setGuestMsg(e.target.value)}
-              placeholder="Ex: Parabéns Alice! Você é brilhante! ✨"
-              maxLength={120}
-              rows={3}
-            />
-
-            <button className="btn icyBtn" type="submit" disabled={busy || !authReady}>
-              {busy ? "Enviando..." : "Enviar 💌"}
+            <button className="btn icyBtn" onClick={enterCastle} type="button">
+              Entrar no Castelo ❄️🎶
             </button>
-          </form>
 
-          <NotesList
+            <button className="btn ghost" onClick={toggleMusic} type="button">
+              Música: {musicOn ? "Ligada 🎵" : "Desligada 🔇"}
+            </button>
+
+            <div className="muted tiny" style={{ marginTop: 10 }}>
+              {authReady ? "✅ Conectado para recadinhos" : "⏳ Conectando para recadinhos..."}
+              {authError ? <div style={{ marginTop: 6 }}>⚠️ {authError}</div> : null}
+            </div>
+
+            <div className="scrollHint">⬇️ Role para ver os recadinhos</div>
+          </div>
+        </section>
+
+        {/* Guestbook BELOW (scroll down) */}
+        <section className="below">
+          <Guestbook
             notes={notes}
             uid={uid}
+            busy={busy}
+            authReady={authReady}
+            guestName={guestName}
+            guestMsg={guestMsg}
+            setGuestName={setGuestName}
+            setGuestMsg={setGuestMsg}
+            createNote={createNote}
             editingId={editingId}
             editName={editName}
             editMsg={editMsg}
@@ -352,18 +325,17 @@ export default function App() {
             cancelEdit={cancelEdit}
             saveEdit={saveEdit}
             removeNote={removeNote}
-            busy={busy}
           />
-        </div>
+        </section>
       </div>
     );
   }
 
+  // ---------- MAIN (game on top, guestbook below) ----------
   return (
     <div className="page">
       <Snow />
       <FloatingBirthdayText />
-      <FloatingNotes notes={notes} />
 
       <header className="top">
         <h2>Bem-vinda, {princessName} 👑</h2>
@@ -372,13 +344,22 @@ export default function App() {
         </button>
       </header>
 
-      <div className="layout">
+      {/* Game first */}
+      <section className="hero">
         <div className="card glass">
           <div className="pillRow">
-            <button className={mode === "sum" ? "pill active" : "pill"} onClick={() => setMode("sum")} type="button">
+            <button
+              className={mode === "sum" ? "pill active" : "pill"}
+              onClick={() => setMode("sum")}
+              type="button"
+            >
               ➕ Soma
             </button>
-            <button className={mode === "sub" ? "pill active" : "pill"} onClick={() => setMode("sub")} type="button">
+            <button
+              className={mode === "sub" ? "pill active" : "pill"}
+              onClick={() => setMode("sub")}
+              type="button"
+            >
               ➖ Subtração
             </button>
           </div>
@@ -391,55 +372,63 @@ export default function App() {
           <div className="question">{question.text}</div>
 
           <form onSubmit={checkAnswer} className="answerRow">
-            <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Resposta" inputMode="numeric" />
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Resposta"
+              inputMode="numeric"
+            />
             <button className="btn icyBtn" type="submit">
               Conferir ❄️
             </button>
           </form>
 
           {feedback && <div className="feedback">{feedback}</div>}
+
+          <div className="scrollHint">⬇️ Role para ver os recadinhos</div>
         </div>
+      </section>
 
-        <div className="card glass">
-          <h3 className="sectionTitle">📜 Recadinhos pra Alice</h3>
-
-          <form onSubmit={createNote} className="noteForm">
-            <label className="tiny muted">Seu nome</label>
-            <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Ex: Vovô" maxLength={40} />
-
-            <label className="tiny muted">Recadinho curto</label>
-            <textarea value={guestMsg} onChange={(e) => setGuestMsg(e.target.value)} placeholder="Ex: Te amo! 🎂" maxLength={120} rows={3} />
-
-            <button className="btn icyBtn" type="submit" disabled={busy || !authReady}>
-              {busy ? "Enviando..." : "Enviar 💌"}
-            </button>
-          </form>
-
-          <NotesList
-            notes={notes}
-            uid={uid}
-            editingId={editingId}
-            editName={editName}
-            editMsg={editMsg}
-            setEditName={setEditName}
-            setEditMsg={setEditMsg}
-            startEdit={startEdit}
-            cancelEdit={cancelEdit}
-            saveEdit={saveEdit}
-            removeNote={removeNote}
-            busy={busy}
-          />
-        </div>
-      </div>
+      {/* Guestbook below */}
+      <section className="below">
+        <Guestbook
+          notes={notes}
+          uid={uid}
+          busy={busy}
+          authReady={authReady}
+          guestName={guestName}
+          guestMsg={guestMsg}
+          setGuestName={setGuestName}
+          setGuestMsg={setGuestMsg}
+          createNote={createNote}
+          editingId={editingId}
+          editName={editName}
+          editMsg={editMsg}
+          setEditName={setEditName}
+          setEditMsg={setEditMsg}
+          startEdit={startEdit}
+          cancelEdit={cancelEdit}
+          saveEdit={saveEdit}
+          removeNote={removeNote}
+        />
+      </section>
 
       <footer className="foot">❄️👑 Castelo da Alice 👑❄️</footer>
     </div>
   );
 }
 
-function NotesList({
+/* ---------------- Guestbook Component (CRUD) ---------------- */
+function Guestbook({
   notes,
   uid,
+  busy,
+  authReady,
+  guestName,
+  guestMsg,
+  setGuestName,
+  setGuestMsg,
+  createNote,
   editingId,
   editName,
   editMsg,
@@ -449,68 +438,128 @@ function NotesList({
   cancelEdit,
   saveEdit,
   removeNote,
-  busy,
 }) {
   return (
-    <div className="noteList">
-      {notes.length === 0 ? (
-        <div className="muted tiny">Ainda não tem recadinhos… seja o primeiro! ❄️</div>
-      ) : (
-        notes.map((n) => {
-          const isEditing = editingId === n.id;
-          const isOwner = uid && n.uid === uid;
+    <div className="card glass">
+      <h3 className="sectionTitle">📜 Livro de Recadinhos da Alice</h3>
+      <p className="muted tiny">Role-play de carinho 💙 (somente o autor edita/apaga)</p>
 
-          return (
-            <div key={n.id} className="noteCard">
-              {!isEditing ? (
-                <>
-                  <div className="noteTop">
-                    <div className="noteName">💙 {n.name}</div>
+      <form onSubmit={createNote} className="noteForm">
+        <label className="tiny muted">Seu nome</label>
+        <input
+          value={guestName}
+          onChange={(e) => setGuestName(e.target.value)}
+          placeholder="Ex: Tia Maria"
+          maxLength={40}
+        />
 
-                    {isOwner && (
-                      <div className="noteBtns">
-                        <button className="miniBtn" type="button" onClick={() => startEdit(n)} disabled={busy}>
-                          Editar
-                        </button>
-                        <button className="miniBtn danger" type="button" onClick={() => removeNote(n.id)} disabled={busy}>
-                          Apagar
-                        </button>
+        <label className="tiny muted">Recadinho curto</label>
+        <textarea
+          value={guestMsg}
+          onChange={(e) => setGuestMsg(e.target.value)}
+          placeholder="Ex: Feliz aniversário princesa! ❄️🎂"
+          maxLength={120}
+          rows={3}
+        />
+
+        <button className="btn icyBtn" type="submit" disabled={busy || !authReady}>
+          {busy ? "Enviando..." : "Enviar 💌"}
+        </button>
+      </form>
+
+      <div className="noteList">
+        {notes.length === 0 ? (
+          <div className="muted tiny">Ainda não tem recadinhos… seja o primeiro! ❄️</div>
+        ) : (
+          notes.map((n) => {
+            const isEditing = editingId === n.id;
+            const isOwner = uid && n.uid === uid;
+
+            return (
+              <div key={n.id} className="noteCard">
+                {!isEditing ? (
+                  <>
+                    <div className="noteTop">
+                      <div className="noteName">💙 {n.name}</div>
+
+                      {isOwner && (
+                        <div className="noteBtns">
+                          <button
+                            className="miniBtn"
+                            type="button"
+                            onClick={() => startEdit(n)}
+                            disabled={busy}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="miniBtn danger"
+                            type="button"
+                            onClick={() => removeNote(n.id)}
+                            disabled={busy}
+                          >
+                            Apagar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="noteMsg">{n.message}</div>
+
+                    {!isOwner && (
+                      <div className="muted tiny" style={{ marginTop: 8 }}>
+                        🔒 Somente o autor pode editar/apagar
                       </div>
                     )}
-                  </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="noteEditGrid">
+                      <div>
+                        <div className="tiny muted">Nome</div>
+                        <input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          maxLength={40}
+                        />
+                      </div>
 
-                  <div className="noteMsg">{n.message}</div>
-
-                  {!isOwner && <div className="muted tiny" style={{ marginTop: 8 }}>🔒 Somente o autor pode editar/apagar</div>}
-                </>
-              ) : (
-                <>
-                  <div className="noteEditGrid">
-                    <div>
-                      <div className="tiny muted">Nome</div>
-                      <input value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={40} />
+                      <div>
+                        <div className="tiny muted">Recadinho curto</div>
+                        <textarea
+                          value={editMsg}
+                          onChange={(e) => setEditMsg(e.target.value)}
+                          maxLength={120}
+                          rows={3}
+                        />
+                      </div>
                     </div>
 
-                    <div>
-                      <div className="tiny muted">Recadinho curto</div>
-                      <textarea value={editMsg} onChange={(e) => setEditMsg(e.target.value)} maxLength={120} rows={3} />
+                    <div className="noteBtns editRow">
+                      <button
+                        className="miniBtn"
+                        type="button"
+                        onClick={() => saveEdit(n.id)}
+                        disabled={busy}
+                      >
+                        Salvar
+                      </button>
+                      <button
+                        className="miniBtn ghosty"
+                        type="button"
+                        onClick={cancelEdit}
+                        disabled={busy}
+                      >
+                        Cancelar
+                      </button>
                     </div>
-                  </div>
-
-                  <div className="noteBtns editRow">
-                    <button className="miniBtn" type="button" onClick={() => saveEdit(n.id)} disabled={busy}>
-                      Salvar
-                    </button>
-                    <button className="miniBtn ghosty" type="button" onClick={cancelEdit} disabled={busy}>
-                      Cancelar
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })
-      )}
+                  </>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
